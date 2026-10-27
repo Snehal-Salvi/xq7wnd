@@ -1,4 +1,21 @@
-# Tool configuration only. Runtime dependencies live in requirements.txt (what Vercel and Docker install).
+[project]
+name = "wind-position-api"
+version = "1.0.0"
+description = "Day-ahead wind forecast visibility and accuracy API (Elexon BMRS)"
+requires-python = ">=3.12"
+# Kept identical to requirements.txt (used by Docker); tests/test_packaging.py enforces it.
+dependencies = [
+    "fastapi==0.162.0",
+    "uvicorn[standard]==0.54.0",
+    "httpx==0.28.1",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.1",
+    "pandas==3.1.0",
+    "numpy==2.5.4",
+]
+
+[tool.vercel]
+entrypoint = "app.main:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
