@@ -5,6 +5,7 @@ import {
   formatEnergy,
   formatPercent,
   formatPower,
+  formatRange,
   formatTime,
 } from "./format";
 
@@ -17,6 +18,13 @@ describe("formatPower", () => {
     [null, {}, "–"],
   ])("%s → %s", (mw, opts, expected) => {
     expect(formatPower(mw, opts)).toBe(expected);
+  });
+});
+
+describe("formatRange", () => {
+  it("keeps sign and one decimal on both ends", () => {
+    expect(formatRange(-3412, 484)).toBe("−3.4 to +0.5 GW");
+    expect(formatRange(-4183.9, 502.7)).toBe("−4.2 to +0.5 GW");
   });
 });
 

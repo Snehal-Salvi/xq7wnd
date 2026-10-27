@@ -5,10 +5,12 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+backend/wheels/
 
 # Node
 node_modules/
 dist/
+*.tsbuildinfo
 
 # Env and tooling
 .env

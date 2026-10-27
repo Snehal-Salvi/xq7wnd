@@ -7,6 +7,8 @@ export interface ChartTheme {
   forecast: string;
   actual: string;
   band: string;
+  short: string;
+  surplus: string;
   ink: string;
   muted: string;
   grid: string;
@@ -31,12 +33,14 @@ function read(): ChartTheme {
   const theme = {
     forecast: v("--forecast", "#2a78d6"),
     actual: v("--actual", "#eb6834"),
-    band: v("--band", "rgba(42,120,214,0.16)"),
-    ink: v("--ink", "#14212b"),
-    muted: v("--muted", "#5b6b76"),
-    grid: v("--grid", "#e3e9ec"),
+    band: v("--band", "rgba(93,112,130,0.14)"),
+    short: v("--short", "rgba(235,104,52,0.26)"),
+    surplus: v("--surplus", "rgba(42,120,214,0.2)"),
+    ink: v("--ink", "#102a43"),
+    muted: v("--muted", "#5d7082"),
+    grid: v("--grid", "#e4eaef"),
     surface: v("--surface", "#ffffff"),
-    highlight: v("--highlight", "rgba(20,33,43,0.06)"),
+    highlight: v("--highlight", "rgba(16,42,67,0.05)"),
   };
   cached = { dark, theme };
   return theme;

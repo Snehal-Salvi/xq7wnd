@@ -1,5 +1,5 @@
 /**
- * Round axis ticks for values in GW: picks a 0.5/1/2/5 GW step so there are
+ * Round axis ticks for values in GW or GWh: picks a 0.5/1/2/5/10/... step so there are
  * roughly 4–6 gridlines, and a domain that starts and ends on a tick.
  */
 export function niceTicks(values: Array<number | null | undefined>, { includeZero = true } = {}) {
@@ -11,7 +11,7 @@ export function niceTicks(values: Array<number | null | undefined>, { includeZer
     hi = Math.max(hi, 0);
   }
   if (hi === lo) hi = lo + 1;
-  const step = [0.5, 1, 2, 5, 10].find((s) => (hi - lo) / s <= 6) ?? 10;
+  const step = [0.5, 1, 2, 5, 10, 20, 25, 50, 100].find((s) => (hi - lo) / s <= 6) ?? 100;
   const start = Math.floor(lo / step) * step;
   const end = Math.ceil(hi / step) * step;
   const ticks: number[] = [];

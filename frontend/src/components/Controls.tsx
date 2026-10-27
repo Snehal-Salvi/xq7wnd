@@ -1,13 +1,6 @@
 import { useId } from "react";
-import { formatDate } from "../lib/format";
 
-const nextDay = (isoDate: string) => {
-  const d = new Date(`${isoDate}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-};
-
-export function DayStepper({
+export function DayNav({
   dates,
   value,
   onChange,
@@ -16,38 +9,31 @@ export function DayStepper({
   value: string;
   onChange: (d: string) => void;
 }) {
-  const id = useId();
   const i = dates.indexOf(value);
   return (
-    <div className="control">
-      <label htmlFor={id}>Decision day</label>
-      <div className="stepper">
-        <button
-          type="button"
-          className="button button--icon"
-          aria-label="Previous day"
-          disabled={i <= 0}
-          onClick={() => onChange(dates[i - 1]!)}
-        >
-          ‹
-        </button>
-        <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-          {dates.map((d) => (
-            <option key={d} value={d}>
-              {formatDate(d)}, for delivery {formatDate(nextDay(d))}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="button button--icon"
-          aria-label="Next day"
-          disabled={i < 0 || i >= dates.length - 1}
-          onClick={() => onChange(dates[i + 1]!)}
-        >
-          ›
-        </button>
-      </div>
+    <div className="day-nav" role="group" aria-label="Step through decision days">
+      <button
+        type="button"
+        className="icon-button"
+        aria-label="Previous day"
+        disabled={i <= 0}
+        onClick={() => onChange(dates[i - 1]!)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden>
+          <path d="M10 3 5 8l5 5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label="Next day"
+        disabled={i < 0 || i >= dates.length - 1}
+        onClick={() => onChange(dates[i + 1]!)}
+      >
+        <svg viewBox="0 0 16 16" aria-hidden>
+          <path d="m6 3 5 5-5 5" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -64,8 +50,8 @@ export function GateClosureInput({
   const id = useId();
   return (
     <div className="control">
-      <label htmlFor={id}>Gate closure (UK time)</label>
-      <div className="stepper">
+      <label htmlFor={id}>Gate closure, UK time</label>
+      <div className="control-row">
         <input
           id={id}
           type="time"
@@ -76,11 +62,31 @@ export function GateClosureInput({
           }
         />
         {value !== defaultValue && (
-          <button type="button" className="button button--quiet" onClick={() => onChange(null)}>
+          <button type="button" className="text-button" onClick={() => onChange(null)}>
             Reset to {defaultValue}
           </button>
         )}
       </div>
     </div>
+  );
+}
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="switch">
+      <input type="checkbox" role="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className="switch-track" aria-hidden>
+        <span className="switch-thumb" />
+      </span>
+      {label}
+    </label>
   );
 }

@@ -1,11 +1,20 @@
 import { useDecision } from "../api/client";
 import type { DecisionView } from "../api/types";
 import { DeliveryDayChart } from "../components/charts/DeliveryDayChart";
-import { DayStepper, GateClosureInput } from "../components/Controls";
+import { DayNav, GateClosureInput, Switch } from "../components/Controls";
 import { Figures, type Figure } from "../components/Figures";
 import { GateClosureTimeline } from "../components/GateClosureTimeline";
 import { ErrorBlock, LoadingBlock } from "../components/Status";
-import { formatDayTime, formatDuration, formatEnergy, formatPower, formatTime } from "../lib/format";
+import {
+  formatDate,
+  formatDay,
+  formatDuration,
+  formatEnergy,
+  formatPercent,
+  formatPower,
+  formatRange,
+  formatTime,
+} from "../lib/format";
 
 interface Props {
   dates: string[];
@@ -21,51 +30,54 @@ function decisionFigures(v: DecisionView): Figure[] {
   return [
     {
       label: "Forecast in force",
-      value: v.forecast_publish_time ? `Published ${formatTime(v.forecast_publish_time)}` : "None available",
+      value: v.forecast_publish_time ? formatTime(v.forecast_publish_time) : "None",
       note:
         v.forecast_age_minutes !== null
-          ? `${formatDuration(v.forecast_age_minutes)} before gate closure`
+          ? `Published ${formatDuration(v.forecast_age_minutes)} before gate closure`
           : undefined,
     },
     {
-      label: "Forecast wind energy",
+      label: "Wind energy forecast",
       value: formatEnergy(v.forecast_energy_mwh),
-      note: `Across ${v.forecast_points.length} hours of delivery`,
+      note: `Across ${v.forecast_points.length} delivery hours`,
     },
     {
-      label: "Likely range per hour",
-      value: band
-        ? `${formatPower(band[0], { signed: true })} to ${formatPower(band[1], { signed: true })}`
-        : "–",
-      note: "Outturn vs forecast, 8 in 10 January hours",
+      label: "Likely miss per hour",
+      value: band ? formatRange(band[0], band[1]) : "–",
+      note: "8 in 10 January hours fell in this range",
     },
   ];
 }
 
 function outturnFigures(v: DecisionView): Figure[] {
+  const shortfallShare =
+    v.over_forecast_mwh !== null && v.forecast_energy_mwh > 0
+      ? v.over_forecast_mwh / v.forecast_energy_mwh
+      : null;
   return [
     {
-      label: "Outturn wind energy",
+      label: "Wind energy delivered",
       value: formatEnergy(v.actual_energy_mwh),
-      note: "Metered after delivery",
+      note: "Metered outturn",
     },
     {
-      label: "Average miss",
+      label: "Typical miss per hour",
       value: formatPower(v.metrics?.mae),
       note: v.metrics ? `${formatPower(v.metrics.bias, { signed: true })} on balance` : undefined,
     },
     {
       label: "Wind short of forecast",
       value: formatEnergy(v.over_forecast_mwh),
-      note: "Energy that had to be bought later",
+      note: shortfallShare !== null ? `${formatPercent(shortfallShare)} of the forecast energy` : undefined,
+      tone: "short",
     },
   ];
 }
 
 function DataTable({ view }: { view: DecisionView }) {
   return (
-    <details className="data-table">
-      <summary>Show the hourly numbers</summary>
+    <details className="disclosure">
+      <summary>Hourly numbers</summary>
       <div className="table-scroll">
         <table>
           <thead>
@@ -86,7 +98,9 @@ function DataTable({ view }: { view: DecisionView }) {
                   {p.band_low !== null ? `${formatPower(p.band_low)} – ${formatPower(p.band_high)}` : "–"}
                 </td>
                 <td>{formatPower(p.actual)}</td>
-                <td>{formatPower(p.error, { signed: true })}</td>
+                <td className={p.error !== null && p.error < 0 ? "is-short" : undefined}>
+                  {formatPower(p.error, { signed: true })}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -101,30 +115,27 @@ export function DecisionPage({ dates, date, gateClosure, defaultGateClosure, sho
   const view = query.data;
 
   return (
-    <section aria-labelledby="decision-heading">
-      <div className="page-intro">
-        <h2 id="decision-heading">What the wind forecast said when the purchase was made</h2>
-        <p>
-          Pick the day the day-ahead purchase was committed. You’ll see the latest forecast that existed at
-          gate closure for each hour of the following day, and how far outturn tends to stray from it.
-        </p>
-      </div>
-
-      <div className="controls">
-        <DayStepper dates={dates} value={date} onChange={(d) => onChange({ date: d })} />
-        <GateClosureInput
-          value={gateClosure}
-          defaultValue={defaultGateClosure}
-          onChange={(g) => onChange({ gate: g })}
-        />
-        <label className="toggle">
-          <input
-            type="checkbox"
-            checked={showActuals}
-            onChange={(e) => onChange({ outturn: e.target.checked ? null : "off" })}
+    <section aria-labelledby="decision-heading" className="page">
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Decision on {formatDate(date)}</p>
+          <h2 id="decision-heading" className="page-title">
+            {view ? `Delivery ${formatDay(view.delivery_start)}` : "Delivery day"}
+          </h2>
+        </div>
+        <div className="toolbar">
+          <DayNav dates={dates} value={date} onChange={(d) => onChange({ date: d })} />
+          <GateClosureInput
+            value={gateClosure}
+            defaultValue={defaultGateClosure}
+            onChange={(g) => onChange({ gate: g })}
           />
-          Compare with outturn
-        </label>
+          <Switch
+            checked={showActuals}
+            onChange={(on) => onChange({ outturn: on ? null : "off" })}
+            label="Compare with outturn"
+          />
+        </div>
       </div>
 
       {query.isError && <ErrorBlock error={query.error} onRetry={() => void query.refetch()} />}
@@ -139,14 +150,23 @@ export function DecisionPage({ dates, date, gateClosure, defaultGateClosure, sho
             deliveryStart={view.delivery_start}
             deliveryEnd={view.delivery_end}
           />
-          <Figures label="At gate closure" items={decisionFigures(view)} />
-          {showActuals && <Figures label="After delivery" items={outturnFigures(view)} />}
-          <DeliveryDayChart view={view} showActuals={showActuals} />
-          <p className="chart-caption">
-            Times in UK local time. Gate closure {formatDayTime(view.decision_time)}. The shaded range is the
-            forecast plus the 10th–90th percentile of January’s gate-closure misses.
-          </p>
-          <DataTable view={view} />
+
+          <div className={showActuals ? "figure-groups" : "figure-groups figure-groups--single"}>
+            <Figures label="At gate closure" items={decisionFigures(view)} />
+            {showActuals && <Figures label="After delivery" items={outturnFigures(view)} />}
+          </div>
+
+          <article className="panel panel--chart">
+            <div className="panel-head">
+              <h3>Forecast against what the wind delivered</h3>
+              <p>
+                Hourly forecast in force at gate closure, half-hourly outturn. Shading between the lines shows
+                wind that fell short of forecast or came in above it.
+              </p>
+            </div>
+            <DeliveryDayChart view={view} showActuals={showActuals} />
+            <DataTable view={view} />
+          </article>
         </div>
       )}
     </section>

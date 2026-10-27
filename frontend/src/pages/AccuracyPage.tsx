@@ -1,7 +1,7 @@
 import { useAccuracy, useHorizon } from "../api/client";
-import type { ErrorMetrics, HorizonReport } from "../api/types";
+import type { HorizonReport } from "../api/types";
 import {
-  DailyErrorChart,
+  DailyEnergyChart,
   ErrorHistogram,
   HorizonChart,
   HourProfileChart,
@@ -9,23 +9,14 @@ import {
 import { GateClosureInput } from "../components/Controls";
 import { Figures } from "../components/Figures";
 import { ErrorBlock, LoadingBlock } from "../components/Status";
-import { formatPower, formatPercent } from "../lib/format";
+import { formatPercent, formatPower, formatRange } from "../lib/format";
+import { headline } from "../lib/insights";
 
 interface Props {
   gateClosure: string;
   defaultGateClosure: string;
   onChange: (patch: Record<string, string | null>) => void;
   onOpenDay: (decisionDate: string) => void;
-}
-
-/** The finding, in one sentence a buyer can repeat. */
-export function headline(m: ErrorMetrics, gateClosure: string): string {
-  const direction = m.bias < 0 ? "above" : "below";
-  const share = m.bias < 0 ? m.over_forecast_share : 1 - m.over_forecast_share;
-  return (
-    `In January, the wind forecast in force at ${gateClosure} missed outturn by ${formatPower(m.mae)} ` +
-    `in a typical hour, and ran ${direction} it ${formatPercent(share)} of the time.`
-  );
 }
 
 function horizonNote(report: HorizonReport): string | null {
@@ -35,8 +26,8 @@ function horizonNote(report: HorizonReport): string | null {
   if (!first || inWindow.length === 0) return null;
   const avg = inWindow.reduce((s, b) => s + b.metrics.mae, 0) / inWindow.length;
   return (
-    `Day-ahead purchases rely on forecasts ${Math.round(from)}–${Math.round(to)} h out, where the typical miss is ` +
-    `${formatPower(avg)}, against ${formatPower(first.metrics.mae)} for the freshest forecasts.`
+    `Day-ahead purchases rely on forecasts ${Math.round(from)}–${Math.round(to)} h out, where the typical miss ` +
+    `is ${formatPower(avg)}, against ${formatPower(first.metrics.mae)} for the freshest forecasts.`
   );
 }
 
@@ -47,21 +38,25 @@ export function AccuracyPage({ gateClosure, defaultGateClosure, onChange, onOpen
   const m = report?.overall;
 
   return (
-    <section aria-labelledby="accuracy-heading">
-      <div className="page-intro">
-        <h2 id="accuracy-heading">How much to trust the forecast</h2>
-        <p>
-          Every January purchase decision replayed: the forecast in force at gate closure against what the
-          wind actually delivered, hour by hour.
-        </p>
-      </div>
-
-      <div className="controls">
-        <GateClosureInput
-          value={gateClosure}
-          defaultValue={defaultGateClosure}
-          onChange={(g) => onChange({ gate: g })}
-        />
+    <section aria-labelledby="accuracy-heading" className="page">
+      <div className="page-head">
+        <div>
+          <h2 id="accuracy-heading" className="page-title">
+            How much to trust the forecast
+          </h2>
+          <p className="page-lede">
+            {m
+              ? headline(m, gateClosure)
+              : "Every January purchase decision replayed against the wind that actually arrived."}
+          </p>
+        </div>
+        <div className="toolbar">
+          <GateClosureInput
+            value={gateClosure}
+            defaultValue={defaultGateClosure}
+            onChange={(g) => onChange({ gate: g })}
+          />
+        </div>
       </div>
 
       {accuracy.isError && <ErrorBlock error={accuracy.error} onRetry={() => void accuracy.refetch()} />}
@@ -69,52 +64,66 @@ export function AccuracyPage({ gateClosure, defaultGateClosure, onChange, onOpen
 
       {report && m && (
         <div className={accuracy.isFetching ? "is-refreshing" : undefined}>
-          <p className="headline">{headline(m, gateClosure)}</p>
-          <Figures
-            label="January summary"
-            items={[
-              {
-                label: "Mean absolute error",
-                value: formatPower(m.mae),
-                note: `${formatPercent(m.nmae)} of average outturn`,
-              },
-              { label: "Root mean square error", value: formatPower(m.rmse), note: "Weights the big misses" },
-              {
-                label: "Average miss",
-                value: formatPower(m.bias, { signed: true }),
-                note: "Negative: forecast too high",
-              },
-              {
-                label: "8 in 10 hours within",
-                value: `${formatPower(m.p10, { signed: true })} to ${formatPower(m.p90, { signed: true })}`,
-                note: `${m.n} hours compared`,
-              },
-            ]}
-          />
+          <div className="figure-groups figure-groups--single">
+            <Figures
+              label={`January at ${gateClosure} gate closure`}
+              items={[
+                {
+                  label: "Mean absolute error",
+                  value: formatPower(m.mae),
+                  note: `${formatPercent(m.nmae)} of average outturn`,
+                },
+                {
+                  label: "Root mean square error",
+                  value: formatPower(m.rmse),
+                  note: "Weights the big misses",
+                },
+                {
+                  label: "Average miss",
+                  value: formatPower(m.bias, { signed: true }),
+                  note: "Negative means the forecast ran high",
+                  tone: m.bias < 0 ? "short" : undefined,
+                },
+                {
+                  label: "8 in 10 hours within",
+                  value: formatRange(m.p10, m.p90),
+                  note: `${m.n} hours compared`,
+                },
+              ]}
+            />
+          </div>
 
           <div className="chart-grid">
-            <article className="panel">
-              <h3>Typical miss by delivery day</h3>
-              <p className="panel-note">Select a bar to open that day.</p>
-              <DailyErrorChart daily={report.daily} onSelect={onOpenDay} />
+            <article className="panel panel--wide">
+              <div className="panel-head">
+                <h3>Energy the forecast missed, day by day</h3>
+                <p>Wind energy short of forecast hangs below the line. Select a day to open it.</p>
+              </div>
+              <DailyEnergyChart daily={report.daily} onSelect={onOpenDay} />
             </article>
             <article className="panel">
-              <h3>Where the misses fall</h3>
-              <p className="panel-note">Hours by size of miss, outturn minus forecast, in GW.</p>
+              <div className="panel-head">
+                <h3>Where the misses fall</h3>
+                <p>Hours by size of miss, outturn minus forecast, in GW.</p>
+              </div>
               <ErrorHistogram bins={report.histogram} />
             </article>
             <article className="panel">
-              <h3>Misses by hour of the day</h3>
-              <p className="panel-note">Bars below zero mean the forecast ran high at that hour.</p>
+              <div className="panel-head">
+                <h3>Misses by hour of the day</h3>
+                <p>Bars below zero mean the forecast ran high at that hour.</p>
+              </div>
               <HourProfileChart byHour={report.by_hour} />
             </article>
-            <article className="panel">
-              <h3>Fresher forecasts miss less</h3>
+            <article className="panel panel--wide">
+              <div className="panel-head">
+                <h3>Fresher forecasts miss less</h3>
+                <p>
+                  {horizon.data ? horizonNote(horizon.data) : "Error by how far ahead the forecast was made."}
+                </p>
+              </div>
               {horizon.data ? (
-                <>
-                  <p className="panel-note">{horizonNote(horizon.data)}</p>
-                  <HorizonChart report={horizon.data} />
-                </>
+                <HorizonChart report={horizon.data} />
               ) : horizon.isError ? (
                 <ErrorBlock error={horizon.error} onRetry={() => void horizon.refetch()} />
               ) : (
@@ -123,9 +132,9 @@ export function AccuracyPage({ gateClosure, defaultGateClosure, onChange, onOpen
             </article>
           </div>
 
-          <details className="method">
+          <details className="disclosure">
             <summary>How these numbers are calculated</summary>
-            <ul>
+            <ul className="method">
               <li>
                 Data: Elexon BMRS. Outturn is half-hourly <code>FUELHH</code> generation for fuel type WIND;
                 forecasts are hourly <code>WINDFOR</code> publications (about eight a day, each looking up to

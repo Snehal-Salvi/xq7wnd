@@ -89,13 +89,22 @@ A hypothesis worth testing with the client, not a conclusion: outturn (`FUELHH`)
 │   └── vercel.json               Production rewrite of /api to the backend deployment
 ├── docs/
 │   └── VIDEO_SCRIPT.md           Outline for the two-part demo video
+├── start.sh                      One-command local setup and run (macOS/Linux)
 ├── docker-compose.yml            Runs the whole product locally
 └── .github/workflows/ci.yml      Lint, types, tests, build, Docker build + smoke test, weekly live check
 ```
 
 ## Running it
 
-### With Docker (recommended)
+### Quickest: one command (macOS / Linux)
+
+```bash
+./start.sh
+```
+
+It creates a Python 3.12+ environment (using [uv](https://docs.astral.sh/uv/) if installed), installs both sides' dependencies, and starts the backend on :8000 and the frontend on http://localhost:5173. Ctrl+C stops both. If no suitable Python is found, it prints how to get one.
+
+### With Docker
 
 ```bash
 docker compose up --build

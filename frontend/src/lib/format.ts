@@ -36,6 +36,16 @@ export function formatPower(mw: number | null | undefined, { signed = false } = 
   return `${sign}${text.replace("-", "−")} GW`;
 }
 
+/** A range in one unit, e.g. (−3412, 484) → "−3.4 to +0.5 GW". */
+export function formatRange(lowMw: number, highMw: number): string {
+  const one = (mw: number) => {
+    const gw = mw / 1000;
+    const text = Math.abs(gw).toLocaleString("en-GB", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    return `${gw < 0 ? "−" : gw > 0 ? "+" : ""}${text}`;
+  };
+  return `${one(lowMw)} to ${one(highMw)} GW`;
+}
+
 export function formatEnergy(mwh: number | null | undefined): string {
   if (mwh === null || mwh === undefined) return "–";
   return `${(mwh / 1000).toLocaleString("en-GB", { maximumFractionDigits: 1, minimumFractionDigits: 1 })} GWh`;

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import type { AccuracyReport, DecisionView } from "../api/types";
 import accuracy from "../test/fixtures/accuracy.json";
 import decision from "../test/fixtures/decision.json";
-import { headline } from "../pages/AccuracyPage";
+import { headline, heroStatement } from "../lib/insights";
 import { mergeSeries } from "./charts/DeliveryDayChart";
 import { GateClosureTimeline, positionPct } from "./GateClosureTimeline";
 
@@ -28,6 +28,9 @@ describe("mergeSeries", () => {
     expect(rows[1]?.forecast).toBeUndefined();
     expect(rows[1]?.hourForecast).toBe(18.699);
     expect(rows.every((r, i) => i === 0 || r.t > rows[i - 1]!.t)).toBe(true);
+    // Shading follows the forecast line: interpolated between hours, none after the last hour.
+    expect(rows[1]?.forecastAt).toBeCloseTo((rows[0]!.forecast! + rows[2]!.forecast!) / 2);
+    expect(rows.at(-1)?.short).toBeUndefined();
   });
 
   it("omits outturn when hidden", () => {
@@ -49,6 +52,18 @@ describe("GateClosureTimeline", () => {
     expect(screen.getByText("Forecast published 09:30")).toBeInTheDocument();
     expect(screen.getByText("Gate closure 09:50")).toBeInTheDocument();
     expect(screen.getByText("14 h 10 min to 37 h 10 min", { exact: false })).toBeInTheDocument();
+  });
+});
+
+describe("heroStatement", () => {
+  it("leads with the direction and frequency of the miss", () => {
+    const m = (accuracy as AccuracyReport).overall!;
+    expect(heroStatement(m)).toMatch(
+      /^The forecast promised more wind than arrived in \d+% of January’s hours\.$/,
+    );
+    expect(heroStatement({ ...m, bias: 500, over_forecast_share: 0.3 })).toBe(
+      "The wind beat its forecast in 70% of January’s hours.",
+    );
   });
 });
 

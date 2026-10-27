@@ -25,7 +25,12 @@ const hourLabel = (h: unknown) => `${String(h).padStart(2, "0")}:00`;
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
 function useAxes(theme: ChartTheme) {
-  const common = { stroke: theme.muted, tick: { fill: theme.muted, fontSize: 12 }, tickLine: false } as const;
+  const common = {
+    stroke: theme.grid,
+    tick: { fill: theme.muted, fontSize: 12 },
+    tickLine: false,
+    tickMargin: 8,
+  } as const;
   return {
     x: common,
     y: { ...common, axisLine: false, width: 56, tickFormatter: (v: number) => `${v} GW` },
@@ -33,8 +38,9 @@ function useAxes(theme: ChartTheme) {
       contentStyle: {
         background: theme.surface,
         border: `1px solid ${theme.grid}`,
-        borderRadius: 6,
+        borderRadius: 10,
         fontSize: 13,
+        boxShadow: "0 8px 24px rgba(16, 42, 67, 0.12)",
       },
       labelStyle: { color: theme.ink, fontWeight: 600 },
       itemStyle: { color: theme.ink },
@@ -42,8 +48,8 @@ function useAxes(theme: ChartTheme) {
   };
 }
 
-/** One bar per delivery day: how far the gate-closure forecast missed, on average. */
-export function DailyErrorChart({
+/** Per delivery day: wind energy short of forecast (down) and above it (up), in GWh. */
+export function DailyEnergyChart({
   daily,
   onSelect,
 }: {
@@ -55,40 +61,67 @@ export function DailyErrorChart({
   const data = daily.map((d) => ({
     date: d.decision_date,
     delivery: d.delivery_date,
-    mae: toGW(d.metrics?.mae),
+    short: d.over_forecast_mwh === null ? null : -d.over_forecast_mwh / 1000,
+    above: d.under_forecast_mwh === null ? null : d.under_forecast_mwh / 1000,
   }));
-  const y = niceTicks(data.map((d) => d.mae));
+  const y = niceTicks(data.flatMap((d) => [d.short, d.above]));
+  const gwh = (v: unknown) =>
+    `${Math.abs(Number(v)).toLocaleString("en-GB", { maximumFractionDigits: 1 })} GWh`;
+  const select = (entry: { payload?: { date: string } }) => entry.payload && onSelect?.(entry.payload.date);
   return (
-    <div className="chart" style={{ height: 260 }}>
-      <ResponsiveContainer>
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid stroke={theme.grid} vertical={false} />
-          <XAxis
-            dataKey="delivery"
-            tickFormatter={(d: string) => shortDate.format(new Date(`${d}T12:00:00Z`))}
-            interval={6}
-            {...a.x}
-          />
-          <YAxis {...a.y} domain={y.domain} ticks={y.ticks} />
-          <Tooltip
-            {...a.tooltip}
-            labelFormatter={(d) => `Delivery ${formatDate(String(d))}`}
-            formatter={(v) => [showGW(v), "Mean absolute error"]}
-            cursor={{ fill: theme.highlight }}
-          />
-          <Bar
-            dataKey="mae"
-            fill={theme.forecast}
-            radius={[3, 3, 0, 0]}
-            cursor={onSelect ? "pointer" : undefined}
-            onClick={(entry: { payload?: { date: string } }) =>
-              entry.payload && onSelect?.(entry.payload.date)
-            }
-            isAnimationActive={false}
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <>
+      <ChartLegend
+        items={[
+          { label: "Short of forecast", color: theme.actual, kind: "bar" },
+          { label: "Above forecast", color: theme.forecast, kind: "bar" },
+        ]}
+      />
+      <div className="chart" style={{ height: 250 }}>
+        <ResponsiveContainer>
+          <BarChart data={data} stackOffset="sign" margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid stroke={theme.grid} vertical={false} />
+            <XAxis
+              dataKey="delivery"
+              tickFormatter={(d: string) => shortDate.format(new Date(`${d}T12:00:00Z`))}
+              interval={6}
+              {...a.x}
+            />
+            <YAxis
+              {...a.y}
+              domain={y.domain}
+              ticks={y.ticks}
+              tickFormatter={(v: number) => `${Math.abs(v)} GWh`}
+              width={64}
+            />
+            <ReferenceLine y={0} stroke={theme.muted} />
+            <Tooltip
+              {...a.tooltip}
+              labelFormatter={(d) => `Delivery ${formatDate(String(d))}`}
+              formatter={(v, name) => [gwh(v), name === "short" ? "Short of forecast" : "Above forecast"]}
+              cursor={{ fill: theme.highlight }}
+            />
+            <Bar
+              dataKey="short"
+              stackId="energy"
+              fill={theme.actual}
+              radius={[0, 0, 3, 3]}
+              cursor={onSelect ? "pointer" : undefined}
+              onClick={select}
+              isAnimationActive={false}
+            />
+            <Bar
+              dataKey="above"
+              stackId="energy"
+              fill={theme.forecast}
+              radius={[3, 3, 0, 0]}
+              cursor={onSelect ? "pointer" : undefined}
+              onClick={select}
+              isAnimationActive={false}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </>
   );
 }
 
@@ -234,7 +267,7 @@ export function HorizonChart({ report }: { report: HorizonReport }) {
           <Line
             dataKey="mae"
             stroke={theme.forecast}
-            strokeWidth={2}
+            strokeWidth={2.5}
             dot={{ r: 4, strokeWidth: 2, fill: theme.surface }}
             isAnimationActive={false}
           />
