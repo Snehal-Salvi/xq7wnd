@@ -1,0 +1,8 @@
+{
+ "decision_dates": [
+  "2026-01-01"
+ ],
+ "default_gate_closure": "09:50:00",
+ "timezone": "Europe/London",
+ "data_source": "Elexon BMRS: FUELHH (fuelType=WIND) actuals, WINDFOR forecasts"
+}
