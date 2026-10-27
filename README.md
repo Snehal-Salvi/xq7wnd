@@ -5,7 +5,7 @@ A web app for a UK utility's day-ahead power desk. It answers two questions for 
 1. **What did the wind forecast say when we had to commit?** The latest national wind forecast that existed at day-ahead gate closure, for each hour of the delivery day.
 2. **How much should we trust it?** The forecast's error, measured against metered outturn, so purchases can allow for it.
 
-- **Live app:** https://REPLACE-WITH-FRONTEND.vercel.app
+- **Live app:** https://xq7wnd.vercel.app
 - **Video walkthrough:** https://youtu.be/REPLACE
 
 ## What the January 2026 data shows
@@ -86,8 +86,6 @@ A hypothesis worth testing with the client, not a conclusion: outturn (`FUELHH`)
 │   │   └── test/                 Test setup and fixtures generated from the real API
 │   ├── Dockerfile                Build, then serve with nginx (proxies /api to the backend)
 │   ├── nginx.conf
-├── docs/
-│   └── VIDEO_SCRIPT.md           Outline for the two-part demo video
 ├── vercel.json                   Vercel Services: /api/* to the backend, everything else to the frontend
 ├── start.sh                      One-command local setup and run (macOS/Linux)
 ├── docker-compose.yml            Runs the whole product locally
