@@ -6,7 +6,7 @@ A web app for a UK utility's day-ahead power desk. It answers two questions for 
 2. **How much should we trust it?** The forecast's error, measured against metered outturn, so purchases can allow for it.
 
 - **Live app:** https://xq7wnd.vercel.app
-- **Video walkthrough:** https://youtu.be/REPLACE
+- **Video walkthrough:** https://youtu.be/btVVRQrYlfQ
 
 ## What the January 2026 data shows
 
