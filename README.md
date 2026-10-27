@@ -86,9 +86,9 @@ A hypothesis worth testing with the client, not a conclusion: outturn (`FUELHH`)
 │   │   └── test/                 Test setup and fixtures generated from the real API
 │   ├── Dockerfile                Build, then serve with nginx (proxies /api to the backend)
 │   ├── nginx.conf
-│   └── vercel.json               Production rewrite of /api to the backend deployment
 ├── docs/
 │   └── VIDEO_SCRIPT.md           Outline for the two-part demo video
+├── vercel.json                   Vercel Services: /api/* to the backend, everything else to the frontend
 ├── start.sh                      One-command local setup and run (macOS/Linux)
 ├── docker-compose.yml            Runs the whole product locally
 └── .github/workflows/ci.yml      Lint, types, tests, build, Docker build + smoke test, weekly live check
@@ -164,10 +164,12 @@ The January figures were reproduced two independent ways: a separate JavaScript 
 
 ## Deployment (Vercel)
 
-The app deploys as two Vercel projects from this repository, both zero-config:
+The whole app deploys as **one Vercel project** using [Vercel Services](https://vercel.com/docs/services), configured by `vercel.json` at the repo root:
 
-1. **Backend:** import the repo, set **Root Directory** to `backend`. Vercel detects FastAPI from `requirements.txt` and serves `app/main.py`. Check `https://<backend>.vercel.app/api/health`.
-2. **Frontend:** in `frontend/vercel.json`, replace `REPLACE-WITH-BACKEND` with the backend deployment's host. Import the repo again with **Root Directory** `frontend`. The rewrite keeps the API same-origin, so no CORS setup is needed.
+- `backend` (FastAPI, `backend/app/main.py`) receives every `/api/*` request, with the path unchanged.
+- `frontend` (Vite static build) receives everything else.
+
+Both live on one domain, so the browser calls the API same-origin with no CORS setup. To deploy: import the repository in Vercel with the root directory left at `./`; Vercel reads `vercel.json` and builds both services. Check `https://<project>.vercel.app/api/health`.
 
 The backend image also runs unchanged on Heroku, Render or Fly (it honours `$PORT`).
 
